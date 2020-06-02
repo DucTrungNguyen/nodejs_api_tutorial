@@ -101,7 +101,7 @@ router.patch('/:productId', function(req, res, next){
 
     Product.update({_id: id}, {$set: updateOps})
         .exec()
-        .then( result =>{
+        .then(  result =>{
             res.status(200).json({
                 message: 'Product updated',
                 request : {
