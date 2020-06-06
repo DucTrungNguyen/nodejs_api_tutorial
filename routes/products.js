@@ -1,21 +1,46 @@
-var express = require('express');
-var router = express.Router();
+const express = require('express');
+const router = express.Router();
 const Product = require('../models/product');
 const mongoose = require('mongoose');
+const multer = require('multer');
+
+const storage = multer.diskStorage({
+    destination:(req, file, cb) => {
+        cb(null, 'uploads/')
+    },
+    filename: function(req, file, cb) {
+    cb(null,   Math.random() + file.originalname);
+  }
+})
+
+const fileFilter = (req, file, cb) =>{
+    if (file.mimetype === 'image/jpeg' 
+        || file.mimetype === 'image/png'
+        || file.mimetype === 'image/jpg') {
+        cb(null, true);
+      } else {
+        cb(null, false);
+      }
+}
+const upload = multer({
+    storage: storage,
+    limits: {
+      fileSize: 1024 * 1024 * 5
+    },
+    fileFilter: fileFilter
+  });
 
 router.get('/', (req, res, next)=>{
     Product
         .find()
-        .select('name price _id')
+        .select('name price productImage _id')
         .exec()
         .then((docs)=>{
             const response = {
                 count: docs.length,
                 products: docs.map(doc => {
                     return {
-                        name: doc.name,
-                        price: doc.price,
-                        id: doc._id,
+                        product: doc,
                         request : {
                             type: 'Get',
                             url:  'localhost:3000/products/' + doc._id
@@ -31,40 +56,39 @@ router.get('/', (req, res, next)=>{
 
 });
 
-router.post('/', (req, res, next)=>{
+router.post('/', upload.single('productImage'),(req, res, next)=>{
 
-
+    console.log(req.file);
     // console.log('into');
     const product  = new Product({
         _id: new mongoose.Types.ObjectId(),
         name : req.body.name,
-        price : req.body.price
+        price : req.body.price,
+        productImage: req.file.path 
     })
 
     product
         .save()
         .then(result => {
-            res.status(200).json({
+            // console.log(result);
+            res.status(201).json({
                 message: 'product saved',
                 createdProduct: {
                     name:result.name,
                     price:result.price,
+                    productImage: result.productImage,
                     request : {
                         type: 'Post',
-                        url:  'localhost:3000/products/' + doc._id
+                        url:  'localhost:3000/products/' + result._id
                     }
 
                 }
             })
         })
         .catch(err => console.log(err));
-    res.status(200).json({
-        message : "This is product added",
-        createProduct : product
-    });
+    
 
 });
-
 
 router.get('/:productId', (req, res, next)=>{
     const id = req.params.productId;
